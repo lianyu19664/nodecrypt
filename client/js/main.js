@@ -1,7 +1,7 @@
 // 导入 NodeCrypt 模块（加密功能模块）
 // Import the NodeCrypt module (used for encryption)
 import './NodeCrypt.js';
-
+import './util.webrtc.js';
 // 从 util.file.js 中导入设置文件发送的函数
 // Import setupFileSend function from util.file.js
 import {
