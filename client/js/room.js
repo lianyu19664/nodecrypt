@@ -1,31 +1,14 @@
-// Room management logic for NodeCrypt web client
-// NodeCrypt 网页客户端的房间管理逻辑
-
-import {
-	createAvatarSVG
-} from './util.avatar.js';
-import {
-	renderChatArea,
-	addSystemMsg,
-	updateChatInputStyle
-} from './chat.js';
-import {
-	renderMainHeader,
-	renderUserList
-} from './ui.js';
-import {
-	escapeHTML
-} from './util.string.js';
-import {
-	$id,
-	createElement
-} from './util.dom.js';
+import { createAvatarSVG } from './util.avatar.js';
+import { renderChatArea, addSystemMsg, updateChatInputStyle } from './chat.js';
+import { renderMainHeader, renderUserList } from './ui.js';
+import { escapeHTML } from './util.string.js';
+import { $id, createElement } from './util.dom.js';
 import { t } from './util.i18n.js';
+import { webRTCManager } from './util.webrtc.js';
+
 let roomsData = [];
 let activeRoomIndex = -1;
 
-// Get a new room data object
-// 获取一个新的房间数据对象
 export function getNewRoomData() {
 	return {
 		roomName: '',
@@ -43,8 +26,6 @@ export function getNewRoomData() {
 	}
 }
 
-// Switch to another room by index
-// 切换到指定索引的房间
 export function switchRoom(index) {
 	if (index < 0 || index >= roomsData.length) return;
 	activeRoomIndex = index;
@@ -60,8 +41,6 @@ export function switchRoom(index) {
 	updateChatInputStyle()
 }
 
-// Set the sidebar avatar
-// 设置侧边栏头像
 export function setSidebarAvatar(userName) {
 	if (!userName) return;
 	const svg = createAvatarSVG(userName);
@@ -72,8 +51,6 @@ export function setSidebarAvatar(userName) {
 	}
 }
 
-// Render the room list
-// 渲染房间列表
 export function renderRooms(activeId = 0) {
 	const roomList = $id('room-list');
 	roomList.innerHTML = '';
@@ -92,8 +69,6 @@ export function renderRooms(activeId = 0) {
 	})
 }
 
-// Join a room
-// 加入一个房间
 export function joinRoom(userName, roomName, password, modal = null, onResult) {
 	const newRd = getNewRoomData();
 	newRd.roomName = roomName;
@@ -113,15 +88,14 @@ export function joinRoom(userName, roomName, password, modal = null, onResult) {
 				closed = true;
 				onResult(false)
 			}
-		},		onServerSecured: () => {
+		},		
+        onServerSecured: () => {
 			if (modal) modal.remove();
 			else {
 				const loginContainer = $id('login-container');
 				if (loginContainer) loginContainer.style.display = 'none';
 				const chatContainer = $id('chat-container');
 				if (chatContainer) chatContainer.style.display = '';
-				
-
 			}
 			if (onResult && !closed) {
 				closed = true;
@@ -140,8 +114,6 @@ export function joinRoom(userName, roomName, password, modal = null, onResult) {
 	roomsData[idx].chat = chatInst
 }
 
-// Handle the client list update
-// 处理客户端列表更新
 export function handleClientList(idx, list, selfId) {
 	const rd = roomsData[idx];
 	if (!rd) return;
@@ -169,8 +141,6 @@ export function handleClientList(idx, list, selfId) {
 	}
 }
 
-// Handle client secured event
-// 处理客户端安全连接事件
 export function handleClientSecured(idx, user) {
 	const rd = roomsData[idx];
 	if (!rd) return;
@@ -190,7 +160,8 @@ export function handleClientSecured(idx, user) {
 	}
 	const isNew = !rd.knownUserIds.has(user.clientId);
 	if (isNew) {
-		rd.knownUserIds.add(user.clientId);		const name = user.userName || user.username || user.name || t('ui.anonymous', 'Anonymous');
+		rd.knownUserIds.add(user.clientId);		
+        const name = user.userName || user.username || user.name || t('ui.anonymous', 'Anonymous');
 		const msg = `${name} ${t('system.joined', 'joined the conversation')}`;
 		rd.messages.push({
 			type: 'system',
@@ -203,8 +174,6 @@ export function handleClientSecured(idx, user) {
 	}
 }
 
-// Handle client left event
-// 处理客户端离开事件
 export function handleClientLeft(idx, clientId) {
 	const rd = roomsData[idx];
 	if (!rd) return;
@@ -231,22 +200,22 @@ export function handleClientLeft(idx, clientId) {
 	}
 }
 
-// Handle client message event
-// 处理客户端消息事件
 export function handleClientMessage(idx, msg) {
 	const newRd = roomsData[idx];
 	if (!newRd) return;
 
-	// Prevent processing own messages unless it's a private message sent to oneself
 	if (msg.clientId === newRd.myId && msg.userName === newRd.myUserName && !msg.type.includes('_private')) {
 		return;
 	}
 
 	let msgType = msg.type || 'text';
 
-	// Handle file messages
+	if (msgType === 'webrtc-signal') {
+		webRTCManager.handleCallSignal(msg.data, msg.clientId);
+		return;
+	}
+
 	if (msgType.startsWith('file_')) {
-		// Part 1: Update message history and send notifications (for 'file_start' type)
 		if (msgType === 'file_start' || msgType === 'file_start_private') {
 			let realUserName = msg.userName;
 			if (!realUserName && msg.clientId && newRd.userMap[msg.clientId]) {
@@ -255,7 +224,7 @@ export function handleClientMessage(idx, msg) {
 			const historyMsgType = msgType === 'file_start_private' ? 'file_private' : 'file';
 			
 			const fileId = msg.data && msg.data.fileId;
-			if (fileId) { // Only proceed if we have a fileId
+			if (fileId) {
 				const messageAlreadyInHistory = newRd.messages.some(
 					m => m.msgType === historyMsgType && m.text && m.text.fileId === fileId && m.userName === realUserName
 				);
@@ -263,7 +232,7 @@ export function handleClientMessage(idx, msg) {
 				if (!messageAlreadyInHistory) {
 					newRd.messages.push({
 						type: 'other',
-						text: msg.data, // This is the file metadata object
+						text: msg.data, 
 						userName: realUserName,
 						avatar: realUserName,
 						msgType: historyMsgType,
@@ -278,28 +247,21 @@ export function handleClientMessage(idx, msg) {
 			}
 		}
 
-		// Part 2: Handle UI interaction (rendering in active room, or unread count in inactive room)
 		if (activeRoomIndex === idx) {
-			// If it's the active room, delegate to util.file.js to handle UI and file transfer state.
-			// This applies to all file-related messages (file_start, file_volume, file_end, etc.)
 			if (window.handleFileMessage) {
 				window.handleFileMessage(msg.data, msgType.includes('_private'));
 			}
 		} else {
-			// If it's not the active room, only increment unread count for 'file_start' messages.
 			if (msgType === 'file_start' || msgType === 'file_start_private') {
 				newRd.unreadCount = (newRd.unreadCount || 0) + 1;
 				renderRooms(activeRoomIndex);
 			}
 		}
-		return; // File messages are fully handled.
+		return; 
 	}
 
-	// Handle image messages (both new and legacy formats)
 	if (msgType === 'image' || msgType === 'image_private') {
-		// Already has correct type
 	} else if (!msgType.includes('_private')) {
-		// Handle legacy image detection
 		if (msg.data && typeof msg.data === 'string' && msg.data.startsWith('data:image/')) {
 			msgType = 'image';
 		} else if (msg.data && typeof msg.data === 'object' && msg.data.image) {
@@ -311,7 +273,6 @@ export function handleClientMessage(idx, msg) {
 		realUserName = newRd.userMap[msg.clientId].userName || newRd.userMap[msg.clientId].username || newRd.userMap[msg.clientId].name;
 	}
 
-	// Add message to messages array for chat history
 	roomsData[idx].messages.push({
 		type: 'other',
 		text: msg.data,
@@ -321,7 +282,6 @@ export function handleClientMessage(idx, msg) {
 		timestamp: Date.now()
 	});
 
-	// Only add message to chat display if it's for the active room
 	if (activeRoomIndex === idx) {
 		if (window.addOtherMsg) {
 			window.addOtherMsg(msg.data, realUserName, realUserName, false, msgType);
@@ -337,8 +297,6 @@ export function handleClientMessage(idx, msg) {
 	}
 }
 
-// Toggle private chat with a user
-// 切换与某用户的私聊
 export function togglePrivateChat(targetId, targetName) {
 	const rd = roomsData[activeRoomIndex];
 	if (!rd) return;
@@ -353,9 +311,6 @@ export function togglePrivateChat(targetId, targetName) {
 	updateChatInputStyle()
 }
 
-
-// Exit the current room
-// 退出当前房间
 export function exitRoom() {
 	if (activeRoomIndex >= 0 && roomsData[activeRoomIndex]) {
 		const chatInst = roomsData[activeRoomIndex].chat;
@@ -378,8 +333,6 @@ export function exitRoom() {
 
 export { roomsData, activeRoomIndex };
 
-// Listen for sidebar username update event
-// 监听侧边栏用户名更新事件
 window.addEventListener('updateSidebarUsername', () => {
 	if (activeRoomIndex >= 0 && roomsData[activeRoomIndex]) {
 		const rd = roomsData[activeRoomIndex];
@@ -387,7 +340,6 @@ window.addEventListener('updateSidebarUsername', () => {
 		if (sidebarUsername && rd.myUserName) {
 			sidebarUsername.textContent = rd.myUserName;
 		}
-		// Also update the avatar to ensure consistency
 		if (rd.myUserName) {
 			setSidebarAvatar(rd.myUserName);
 		}

@@ -1,16 +1,13 @@
-// WebRTC utility for NodeCrypt voice and video chat
-// NodeCrypt 语音和视频聊天的 WebRTC 工具
-
 import { t } from './util.i18n.js';
 import { $, $id, createElement, addClass, removeClass } from './util.dom.js';
 import { roomsData, activeRoomIndex } from './room.js';
 
 class WebRTCManager {
     constructor() {
-        this.peerConnections = new Map(); // 存储每个用户的连接
+        this.peerConnections = new Map();
         this.localStream = null;
         this.isCallActive = false;
-        this.callType = null; // 'audio' 或 'video'
+        this.callType = null;
         this.iceServers = [
             { urls: 'stun:stun.cloudflare.com:3478' },
             { urls: 'stun:stun.l.google.com:19302' }
@@ -22,9 +19,9 @@ class WebRTCManager {
     init() {
         this.setupCallUI();
         this.bindEvents();
-    }    // 设置通话 UI
+    }
+
     setupCallUI() {
-        // 创建通话控制按钮
         const newMessageWrapper = $('.new-message-wrapper');
         if (!newMessageWrapper) return;
 
@@ -44,16 +41,13 @@ class WebRTCManager {
             </div>
         `;
 
-        // 在发送按钮之前插入通话按钮
         const sendButton = $('.send-message-btn');
         if (sendButton) {
             sendButton.insertAdjacentHTML('beforebegin', callButtonsHtml);
         } else {
-            // 如果没有发送按钮，插入到 new-message-wrapper 的末尾
             newMessageWrapper.insertAdjacentHTML('beforeend', callButtonsHtml);
         }
 
-        // 创建通话窗口
         const callWindowHtml = `
             <div class="call-window hidden" id="call-window">
                 <div class="call-header">
@@ -91,7 +85,6 @@ class WebRTCManager {
         document.body.insertAdjacentHTML('beforeend', callWindowHtml);
     }
 
-    // 绑定事件
     bindEvents() {
         const audioCallBtn = $id('audio-call-btn');
         const videoCallBtn = $id('video-call-btn');
@@ -118,12 +111,12 @@ class WebRTCManager {
         if (videoToggleBtn) {
             videoToggleBtn.addEventListener('click', () => this.toggleVideo());
         }
-    }    // 开始通话
+    }
+
     async startCall(type) {
         if (this.isCallActive) return;
         if (activeRoomIndex < 0 || !roomsData[activeRoomIndex] || !roomsData[activeRoomIndex].nodeCrypt) return;
 
-        // 检查房间是否有其他用户
         const userList = roomsData[activeRoomIndex].userList || [];
         if (userList.length === 0) {
             alert(t('call.no_users_in_room') || 'No other users in the room to call.');
@@ -134,7 +127,6 @@ class WebRTCManager {
             this.callType = type;
             this.isCallActive = true;
 
-            // 获取媒体流
             const constraints = {
                 audio: true,
                 video: type === 'video'
@@ -142,7 +134,6 @@ class WebRTCManager {
 
             this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
             
-            // 显示本地视频
             const localVideo = $id('local-video');
             if (localVideo && this.localStream) {
                 localVideo.srcObject = this.localStream;
@@ -151,10 +142,8 @@ class WebRTCManager {
                 }
             }
 
-            // 显示通话窗口
             this.showCallWindow();
 
-            // 向房间内所有用户发起通话
             this.sendCallSignal('call-offer', {
                 type: type,
                 callId: Date.now().toString()
@@ -165,7 +154,8 @@ class WebRTCManager {
             this.endCall();
             alert(t('call.failed_to_access_media'));
         }
-    }    // 处理接收到的通话信令
+    }
+
     async handleCallSignal(data, fromClientId) {
         const { signalType, payload } = data;
 
@@ -191,10 +181,8 @@ class WebRTCManager {
         }
     }
 
-    // 处理通话邀请
     async handleCallOffer(payload, fromClientId) {
         if (this.isCallActive) {
-            // 如果已经在通话中，拒绝新的通话
             this.sendCallSignal('call-end', { reason: 'busy' }, fromClientId);
             return;
         }
@@ -209,7 +197,6 @@ class WebRTCManager {
             this.callType = payload.type;
             this.isCallActive = true;
 
-            // 获取媒体流
             const constraints = {
                 audio: true,
                 video: payload.type === 'video'
@@ -217,18 +204,14 @@ class WebRTCManager {
 
             this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
             
-            // 创建 RTCPeerConnection
             const pc = await this.createPeerConnection(fromClientId);
             
-            // 添加本地流
             this.localStream.getTracks().forEach(track => {
                 pc.addTrack(track, this.localStream);
             });
 
-            // 显示通话窗口
             this.showCallWindow();
 
-            // 发送应答
             this.sendCallSignal('call-answer', {
                 accepted: true,
                 type: payload.type
@@ -238,7 +221,8 @@ class WebRTCManager {
             console.error('Failed to handle call offer:', error);
             this.sendCallSignal('call-end', { reason: 'error' }, fromClientId);
         }
-    }    // 处理通话应答
+    }
+
     async handleCallAnswer(payload, fromClientId) {
         if (!payload.accepted) {
             this.endCall();
@@ -246,17 +230,14 @@ class WebRTCManager {
         }
 
         try {
-            // 创建 RTCPeerConnection
             const pc = await this.createPeerConnection(fromClientId);
             
-            // 添加本地流
             if (this.localStream) {
                 this.localStream.getTracks().forEach(track => {
                     pc.addTrack(track, this.localStream);
                 });
             }
 
-            // 创建并发送 Offer
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
 
@@ -270,7 +251,6 @@ class WebRTCManager {
         }
     }
 
-    // 处理 WebRTC Offer
     async handleWebRTCOffer(payload, fromClientId) {
         try {
             const pc = this.peerConnections.get(fromClientId);
@@ -290,7 +270,6 @@ class WebRTCManager {
         }
     }
 
-    // 处理 WebRTC Answer
     async handleWebRTCAnswer(payload, fromClientId) {
         try {
             const pc = this.peerConnections.get(fromClientId);
@@ -303,7 +282,6 @@ class WebRTCManager {
         }
     }
 
-    // 处理 ICE 候选
     async handleIceCandidate(payload, fromClientId) {
         const pc = this.peerConnections.get(fromClientId);
         if (pc && payload.candidate) {
@@ -315,7 +293,6 @@ class WebRTCManager {
         }
     }
 
-    // 处理通话结束
     handleCallEnd(fromClientId) {
         const pc = this.peerConnections.get(fromClientId);
         if (pc) {
@@ -323,19 +300,16 @@ class WebRTCManager {
             this.peerConnections.delete(fromClientId);
         }
 
-        // 如果所有连接都关闭了，结束通话
         if (this.peerConnections.size === 0) {
             this.endCall();
         }
     }
 
-    // 创建 RTCPeerConnection
     async createPeerConnection(clientId) {
         const pc = new RTCPeerConnection({
             iceServers: this.iceServers
         });
 
-        // 处理 ICE 候选
         pc.onicecandidate = (event) => {
             if (event.candidate) {
                 this.sendCallSignal('ice-candidate', {
@@ -344,7 +318,6 @@ class WebRTCManager {
             }
         };
 
-        // 处理远程流
         pc.ontrack = (event) => {
             const remoteVideo = $id('remote-video');
             if (remoteVideo && event.streams[0]) {
@@ -359,7 +332,6 @@ class WebRTCManager {
         return pc;
     }
 
-    // 发送通话信令
     sendCallSignal(signalType, payload, targetClientId = null) {
         if (activeRoomIndex < 0 || !roomsData[activeRoomIndex] || !roomsData[activeRoomIndex].nodeCrypt) {
             return;
@@ -371,7 +343,6 @@ class WebRTCManager {
         };
 
         if (targetClientId) {
-            // 发送给特定用户
             roomsData[activeRoomIndex].nodeCrypt.sendMessage(
                 roomsData[activeRoomIndex].nodeCrypt.encryptServerMessage({
                     a: 'c',
@@ -384,12 +355,10 @@ class WebRTCManager {
                 }, roomsData[activeRoomIndex].nodeCrypt.serverShared)
             );
         } else {
-            // 广播给所有用户
             roomsData[activeRoomIndex].nodeCrypt.sendChannelMessage('webrtc-signal', signalData);
         }
     }
 
-    // 显示通话窗口
     showCallWindow() {
         const callWindow = $id('call-window');
         const callTitle = $id('call-title');
@@ -402,7 +371,6 @@ class WebRTCManager {
                     t('call.video_call') : t('call.voice_call');
             }
 
-            // 根据通话类型调整UI
             const localVideo = $id('local-video');
             const remoteVideo = $id('remote-video');
             const videoToggleBtn = $id('video-toggle-btn');
@@ -419,38 +387,31 @@ class WebRTCManager {
         }
     }
 
-    // 结束通话
     endCall() {
         this.isCallActive = false;
         this.callType = null;
 
-        // 关闭所有 RTCPeerConnection
         this.peerConnections.forEach(pc => pc.close());
         this.peerConnections.clear();
 
-        // 停止本地媒体流
         if (this.localStream) {
             this.localStream.getTracks().forEach(track => track.stop());
             this.localStream = null;
         }
 
-        // 隐藏通话窗口
         const callWindow = $id('call-window');
         if (callWindow) {
             addClass(callWindow, 'hidden');
         }
 
-        // 清空视频元素
         const localVideo = $id('local-video');
         const remoteVideo = $id('remote-video');
         if (localVideo) localVideo.srcObject = null;
         if (remoteVideo) remoteVideo.srcObject = null;
 
-        // 发送通话结束信号
         this.sendCallSignal('call-end', { reason: 'ended' });
     }
 
-    // 切换静音
     toggleMute() {
         if (!this.localStream) return;
 
@@ -472,7 +433,6 @@ class WebRTCManager {
         }
     }
 
-    // 切换视频
     toggleVideo() {
         if (!this.localStream || this.callType === 'audio') return;
 
@@ -497,7 +457,6 @@ class WebRTCManager {
         }
     }
 
-    // 获取用户名
     getUserName(clientId) {
         if (activeRoomIndex < 0 || !roomsData[activeRoomIndex]) return clientId;
         
@@ -509,5 +468,4 @@ class WebRTCManager {
     }
 }
 
-// 创建全局 WebRTC 管理器实例
 export const webRTCManager = new WebRTCManager();
