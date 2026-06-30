@@ -1,5 +1,3 @@
-// Import necessary modules
-// 导入必要的模块
 import {
 	createAvatarSVG
 } from './util.avatar.js';
@@ -27,8 +25,6 @@ import {
 	t
 } from './util.i18n.js';
 
-// Render the chat area
-// 渲染聊天区域
 export function renderChatArea() {
 	const chatArea = $id('chat-area');
 	if (!chatArea) return;
@@ -44,8 +40,6 @@ export function renderChatArea() {
 	})
 }
 
-// Add a message to the chat area
-// 添加消息到聊天区域
 export function addMsg(text, isHistory = false, msgType = 'text', timestamp = null) {
 	let ts = isHistory ? timestamp : (timestamp || Date.now());
 	if (!ts) return;
@@ -61,51 +55,40 @@ export function addMsg(text, isHistory = false, msgType = 'text', timestamp = nu
 	let className = 'bubble me' + (msgType.includes('_private') ? ' private-message' : '');
 	const date = new Date(ts);
 	const time = date.getHours().toString().padStart(2, '0') + ':' + date.getMinutes().toString().padStart(2, '0');	let contentHtml = '';	if (msgType === 'image' || msgType === 'image_private') {
-		// Handle image messages (can contain both text and images)
 		if (typeof text === 'object' && text.images && Array.isArray(text.images)) {
-			// New multi-image format: {text: "", images: ["data:image...", "data:image..."]}
 			const messageText = text.text ? textToHTML(text.text) : '';
 			const imageElements = text.images.map(imgData => {
 				const safeImgSrc = escapeHTML(imgData).replace(/javascript:/gi, '');
 				return `<img src="${safeImgSrc}" alt="image" class="bubble-img">`;
 			}).join('');
 					if (messageText && imageElements) {
-				// Mixed content: text + images
 				contentHtml = `<div class="mixed-content">
 					<div class="message-text">${messageText}</div>
 					${imageElements}
 				</div>`;
 			} else if (imageElements) {
-				// Images only
 				contentHtml = imageElements;
 			} else {
-				// Fallback to text only
 				contentHtml = messageText;
 			}
 		} else if (typeof text === 'object' && text.image) {
-			// Legacy single image format: {text: "", image: "data:image..."}
 			const safeImgSrc = escapeHTML(text.image).replace(/javascript:/gi, '');
 			const messageText = text.text ? textToHTML(text.text) : '';
 			
 			if (messageText) {
-				// Mixed content: text + image
 				contentHtml = `<div class="mixed-content">
 					<div class="message-text">${messageText}</div>
 					<img src="${safeImgSrc}" alt="image" class="bubble-img">
 				</div>`;
 			} else {
-				// Image only
 				contentHtml = `<img src="${safeImgSrc}" alt="image" class="bubble-img">`;
 			}
 		} else {
-			// Legacy format: plain image data URL
 			const safeImgSrc = escapeHTML(text).replace(/javascript:/gi, '');
 			contentHtml = `<img src="${safeImgSrc}" alt="image" class="bubble-img">`;
 		}
 	} else if (msgType === 'file' || msgType === 'file_private') {
-		// Handle file messages
 		contentHtml = renderFileMessage(text, true);
-		// Add file-bubble class for special timestamp positioning
 		className += ' file-bubble';
 	} else {
 		contentHtml = textToHTML(text)
@@ -117,12 +100,9 @@ export function addMsg(text, isHistory = false, msgType = 'text', timestamp = nu
 	chatArea.scrollTop = chatArea.scrollHeight
 }
 
-// Add a message from another user to the chat area
-// 添加来自其他用户的消息到聊天区域
 export function addOtherMsg(msg, userName = '', avatar = '', isHistory = false, msgType = 'text', timestamp = null) {
 	if (!userName && activeRoomIndex >= 0) {
 		const rd = roomsData[activeRoomIndex];
-		// 优先使用文件消息自带的 userName 字段
 		if (msg && msg.userName) {
 			userName = msg.userName;
 		} else if (rd && msg && msg.clientId && rd.userMap[msg.clientId]) {
@@ -137,49 +117,39 @@ export function addOtherMsg(msg, userName = '', avatar = '', isHistory = false, 
 	const bubbleWrap = createElement('div', {
 		class: 'bubble-other-wrap'
 	});	let contentHtml = '';	if (msgType === 'image' || msgType === 'image_private') {
-		// Handle image messages (can contain both text and images)
 		if (typeof msg === 'object' && msg.images && Array.isArray(msg.images)) {
-			// New multi-image format: {text: "", images: ["data:image...", "data:image..."]}
 			const messageText = msg.text ? textToHTML(msg.text) : '';
 			const imageElements = msg.images.map(imgData => {
 				const safeImgSrc = escapeHTML(imgData).replace(/javascript:/gi, '');
 				return `<img src="${safeImgSrc}" alt="image" class="bubble-img">`;
 			}).join('');
 					if (messageText && imageElements) {
-				// Mixed content: text + images
 				contentHtml = `<div class="mixed-content">
 					<div class="message-text">${messageText}</div>
 					${imageElements}
 				</div>`;
 			} else if (imageElements) {
-				// Images only
 				contentHtml = imageElements;
 			} else {
-				// Fallback to text only
 				contentHtml = messageText;
 			}
 		} else if (typeof msg === 'object' && msg.image) {
-			// Legacy single image format: {text: "", image: "data:image..."}
 			const safeImgSrc = escapeHTML(msg.image).replace(/javascript:/gi, '');
 			const messageText = msg.text ? textToHTML(msg.text) : '';
 			
 			if (messageText) {
-				// Mixed content: text + image
 				contentHtml = `<div class="mixed-content">
 					<div class="message-text">${messageText}</div>
 					<img src="${safeImgSrc}" alt="image" class="bubble-img">
 				</div>`;
 			} else {
-				// Image only
 				contentHtml = `<img src="${safeImgSrc}" alt="image" class="bubble-img">`;
 			}
 		} else {
-			// Legacy format: plain image data URL
 			const safeImgSrc = escapeHTML(msg).replace(/javascript:/gi, '');
 			contentHtml = `<img src="${safeImgSrc}" alt="image" class="bubble-img">`;
 		}
 	} else if (msgType === 'file' || msgType === 'file_private') {
-		// Handle file messages
 		contentHtml = renderFileMessage(msg, false);	} else {
 		contentHtml = textToHTML(msg)
 	}
@@ -204,8 +174,6 @@ export function addOtherMsg(msg, userName = '', avatar = '', isHistory = false, 
 	chatArea.scrollTop = chatArea.scrollHeight
 }
 
-// Add a system message to the chat area
-// 添加系统消息到聊天区域
 export function addSystemMsg(text, isHistory = false, timestamp = null) {
 	if (!isHistory && activeRoomIndex >= 0) {
 		const ts = timestamp || Date.now();
@@ -225,8 +193,6 @@ export function addSystemMsg(text, isHistory = false, timestamp = null) {
 	chatArea.scrollTop = chatArea.scrollHeight
 }
 
-// Update the style of the chat input area
-// 更新聊天输入区域的样式
 export function updateChatInputStyle() {
 	const rd = roomsData[activeRoomIndex];
 	const chatInputArea = $('.chat-input-area');
@@ -245,8 +211,6 @@ export function updateChatInputStyle() {
 	placeholder.style.opacity = (html === '') ? '1' : '0'
 }
 
-// Setup image preview functionality
-// 设置图片预览功能
 export function setupImagePreview() {
 	on($id('chat-area'), 'click', function(e) {
 		const target = e.target;
@@ -256,8 +220,6 @@ export function setupImagePreview() {
 	})
 }
 
-// Show the image modal
-// 显示图片模态框
 export function showImageModal(src) {
 	const modal = createElement('div', {
 		class: 'img-modal-bg'
@@ -336,8 +298,6 @@ export function showImageModal(src) {
 	updateTransform()
 }
 
-// Render file message content
-// 渲染文件消息内容
 function renderFileMessage(fileData, isSender) {
 	const {
 		fileId,
@@ -348,10 +308,8 @@ function renderFileMessage(fileData, isSender) {
 		isArchive
 	} = fileData;
 	
-	// For archive files, show file count and total size
 	let displayName, displayMeta;
 	if (isArchive && fileCount) {
-		// 使用 i18n，保持原格式
 		displayName = `${fileCount}${t('file.files', ' files')}`;
 		displayMeta = `${t('file.total', 'Total')}: ${formatFileSize(originalSize)}`;
 	} else {
@@ -361,7 +319,6 @@ function renderFileMessage(fileData, isSender) {
 	
 	const safeDisplayName = escapeHTML(displayName);
 
-	// Check actual file transfer status
 	const transfer = window.fileTransfers ? window.fileTransfers.get(fileId) : null;
 	let statusText = '';
 	let progressWidth = '0%';
@@ -380,16 +337,12 @@ function renderFileMessage(fileData, isSender) {
 			statusText = `Receiving ${transfer.receivedVolumes.size}/${transfer.totalVolumes}`;
 			showProgress = true;
 		} else if (transfer.status === 'completed') {
-			// 完成时不显示任何状态，只显示下载按钮
 			downloadBtnStyle = isSender ? 'display: none;' : 'display: flex;';
 		}	} else if (isSender) {
-		// 发送方历史消息，不显示状态和下载按钮
 		downloadBtnStyle = 'display: none;';
 	} else {
-		// 接收方历史消息，直接显示下载按钮（带动画效果）
 		downloadBtnStyle = 'display: flex;';
 	}
-	// Different icon for archives vs single files
 	const fileIcon = isArchive ? '📦' : '📄';
 
 	return `
@@ -416,8 +369,6 @@ function renderFileMessage(fileData, isSender) {
 	`;
 }
 
-// Automatically adjust the height of the input area
-// 自动调整输入区域的高度
 export function autoGrowInput() {
 	const input = $('.input-message-input');
 	if (!input) return;
@@ -425,8 +376,6 @@ export function autoGrowInput() {
 	input.style.height = input.scrollHeight + 'px'
 }
 
-// Handle pasting text as plain text
-// 处理粘贴为纯文本
 function handlePasteAsPlainText(element) {
 	if (!element) return;
 	on(element, 'paste', function(e) {
@@ -453,8 +402,6 @@ function handlePasteAsPlainText(element) {
 	})
 }
 
-// Setup input placeholder functionality
-// 设置输入框占位符功能
 export function setupInputPlaceholder() {
 	const input = $('.input-message-input');
 	const placeholder = $('.input-field-placeholder');

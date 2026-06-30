@@ -115,7 +115,7 @@ class WebRTCManager {
 
     async startCall(type) {
         if (this.isCallActive) return;
-        if (activeRoomIndex < 0 || !roomsData[activeRoomIndex] || !roomsData[activeRoomIndex].nodeCrypt) return;
+        if (activeRoomIndex < 0 || !roomsData[activeRoomIndex] || !roomsData[activeRoomIndex].chat) return;
 
         const userList = roomsData[activeRoomIndex].userList || [];
         if (userList.length === 0) {
@@ -301,7 +301,7 @@ class WebRTCManager {
         }
 
         if (this.peerConnections.size === 0) {
-            this.endCall();
+            this.endCall(false);
         }
     }
 
@@ -333,7 +333,7 @@ class WebRTCManager {
     }
 
     sendCallSignal(signalType, payload, targetClientId = null) {
-        if (activeRoomIndex < 0 || !roomsData[activeRoomIndex] || !roomsData[activeRoomIndex].nodeCrypt) {
+        if (activeRoomIndex < 0 || !roomsData[activeRoomIndex] || !roomsData[activeRoomIndex].chat) {
             return;
         }
 
@@ -342,20 +342,22 @@ class WebRTCManager {
             payload
         };
 
+        const chatInst = roomsData[activeRoomIndex].chat;
+
         if (targetClientId) {
-            roomsData[activeRoomIndex].nodeCrypt.sendMessage(
-                roomsData[activeRoomIndex].nodeCrypt.encryptServerMessage({
+            chatInst.sendMessage(
+                chatInst.encryptServerMessage({
                     a: 'c',
-                    p: roomsData[activeRoomIndex].nodeCrypt.encryptClientMessage({
+                    p: chatInst.encryptClientMessage({
                         a: 'm',
                         t: 'webrtc-signal',
                         d: signalData
-                    }, roomsData[activeRoomIndex].nodeCrypt.channel[targetClientId].shared),
+                    }, chatInst.channel[targetClientId].shared),
                     c: targetClientId
-                }, roomsData[activeRoomIndex].nodeCrypt.serverShared)
+                }, chatInst.serverShared)
             );
         } else {
-            roomsData[activeRoomIndex].nodeCrypt.sendChannelMessage('webrtc-signal', signalData);
+            chatInst.sendChannelMessage('webrtc-signal', signalData);
         }
     }
 
@@ -387,7 +389,8 @@ class WebRTCManager {
         }
     }
 
-    endCall() {
+    endCall(isBroadcast = true) {
+        if (!this.isCallActive) return;
         this.isCallActive = false;
         this.callType = null;
 
@@ -409,7 +412,9 @@ class WebRTCManager {
         if (localVideo) localVideo.srcObject = null;
         if (remoteVideo) remoteVideo.srcObject = null;
 
-        this.sendCallSignal('call-end', { reason: 'ended' });
+        if (isBroadcast) {
+            this.sendCallSignal('call-end', { reason: 'ended' });
+        }
     }
 
     toggleMute() {
@@ -460,9 +465,9 @@ class WebRTCManager {
     getUserName(clientId) {
         if (activeRoomIndex < 0 || !roomsData[activeRoomIndex]) return clientId;
         
-        const nodeCrypt = roomsData[activeRoomIndex].nodeCrypt;
-        if (nodeCrypt && nodeCrypt.channel[clientId]) {
-            return nodeCrypt.channel[clientId].username || clientId;
+        const chatInst = roomsData[activeRoomIndex].chat;
+        if (chatInst && chatInst.channel[clientId]) {
+            return chatInst.channel[clientId].username || clientId;
         }
         return clientId;
     }

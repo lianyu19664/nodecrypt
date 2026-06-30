@@ -5,8 +5,6 @@
 const crypto = require('crypto');
 const ws = require('ws');
 
-// Generate a new RSA key pair
-// 生成一个新的 RSA 密钥对
 const generateRSAKeyPair = () => {
 	try {
 		console.log('Generating new RSA keypair...');
@@ -64,8 +62,6 @@ console.log('server started', config.wsHost, config.wsPort);
 var clients = {};
 var channels = {};
 
-// WebSocket server connection event handler
-// WebSocket 服务器连接事件处理程序
 wss.on('connection', (connection) => {
 
 	if (
@@ -260,8 +256,6 @@ wss.on('connection', (connection) => {
 
 });
 
-// Process encrypted messages
-// 处理加密消息
 const processEncryptedMessage = (clientId, message) => {
 	let decrypted = null;
 
@@ -294,8 +288,6 @@ const processEncryptedMessage = (clientId, message) => {
 	}
 };
 
-// Handle channel join requests
-// 处理加入频道请求
 const handleJoinChannel = (clientId, decrypted) => {
 	if (
 		!isString(decrypted.p) ||
@@ -322,8 +314,6 @@ const handleJoinChannel = (clientId, decrypted) => {
 	}
 };
 
-// Handle client messages
-// 处理客户端消息
 const handleClientMessage = (clientId, decrypted) => {
 	if (
 		!isString(decrypted.p) ||
@@ -355,8 +345,6 @@ const handleClientMessage = (clientId, decrypted) => {
 	}
 };
 
-// Handle channel messages
-// 处理频道消息
 const handleChannelMessage = (clientId, decrypted) => {
 	if (
 		!isObject(decrypted.p) ||
@@ -393,8 +381,6 @@ const handleChannelMessage = (clientId, decrypted) => {
 	}
 };
 
-// Broadcast member list to channel
-// 向频道广播成员列表
 const broadcastMemberList = (channel) => {
 	try {
 		const members = channels[channel];
@@ -421,10 +407,6 @@ const broadcastMemberList = (channel) => {
 	}
 };
 
-
-
-// Log events with timestamps and levels
-// 记录带时间戳和级别的事件
 const logEvent = (source, message, level) => {
 	if (
 		level !== 'debug' ||
@@ -444,7 +426,6 @@ const logEvent = (source, message, level) => {
 	}
 };
 
-
 const generateClientId = () => {
 	try {
 		return (crypto.randomBytes(8).toString('hex'));
@@ -454,7 +435,6 @@ const generateClientId = () => {
 	}
 };
 
-
 const closeConnection = (connection) => {
 	try {
 		connection.close();
@@ -462,7 +442,6 @@ const closeConnection = (connection) => {
 		logEvent('closeConnection', error, 'error');
 	}
 };
-
 
 const isClientInChannel = (client, channel) => {
 	return (
@@ -476,7 +455,6 @@ const isClientInChannel = (client, channel) => {
 	);
 };
 
-
 const sendMessage = (connection, message) => {
 	try {
 		if (
@@ -489,7 +467,6 @@ const sendMessage = (connection, message) => {
 		logEvent('sendMessage', error, 'error');
 	}
 };
-
 
 const encryptMessage = (message, key) => {
 
@@ -517,7 +494,6 @@ const encryptMessage = (message, key) => {
 
 };
 
-
 const decryptMessage = (message, key) => {
 
 	let decrypted = {};
@@ -544,11 +520,9 @@ const decryptMessage = (message, key) => {
 
 };
 
-
 const getTime = () => {
 	return (new Date().getTime());
 };
-
 
 const isString = (value) => {
 	return (
@@ -559,7 +533,6 @@ const isString = (value) => {
 	);
 };
 
-
 const isArray = (value) => {
 	return (
 		value &&
@@ -568,7 +541,6 @@ const isArray = (value) => {
 		false
 	);
 };
-
 
 const isObject = (value) => {
 	return (
